@@ -1,7 +1,7 @@
 #include "imgui.h"
-#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdl.h" /* ImGui_ImplSDL2_InitForSDLRenderer -- tag hop */
 /* #include "imgui_impl_opengl3.h" */
-#include "imgui_impl_sdlrenderer.h"
+#include "imgui_impl_sdlrenderer.h" /* ImGui_ImplSDLRenderer_Init -- tag hop */
 #include <stdio.h>
 #include <SDL.h>
 

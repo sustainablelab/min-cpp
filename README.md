@@ -1,5 +1,5 @@
-This is a minimal C++ build setup using IMGUI with the SDL2 and
-OpenGL3 backends.
+This is a minimal C++ build setup using IMGUI with SDL2
+~and OpenGL3~.
 
 # Minimal Source
 
