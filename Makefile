@@ -1,5 +1,8 @@
 EXE = main
+
 default-target: $(EXE)
+check-macros: prep_main.cpp
+
 SRC = main
 IMGUI_DIR = ../../imgui/
 SOURCES = $(SRC).cpp
@@ -67,3 +70,6 @@ lib-tags: $(SRC).cpp parse-headers.exe
 
 parse-headers.exe: parse-headers.c
 	$(CC) -Wall $< -o $@
+
+prep_main.cpp: main.cpp
+	$(CXX) $(CXXFLAGS) -E -o $@ $<

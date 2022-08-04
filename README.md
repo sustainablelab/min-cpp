@@ -303,3 +303,121 @@ like this:
 ```make
 IMGUI_DIR = ../../imgui/
 ```
+
+# C++ stuff
+
+## Namespace
+
+```c
+    // ImGui is a namespace
+    ImGui::CreateContext();
+```
+
+The `ImGui::` means `CreateContext()` is in the `ImGui`
+namespace.
+
+I see two ways Omar Cornut puts things in the `ImGui` namespace:
+
+1. Put `static` function declarations in the following code block:
+
+```c
+// imgui.cpp:950
+namespace ImGui
+{
+    ...
+}
+```
+
+So that's a list of "internal" functions in the ImGui namespace?
+
+I guess the idea is he needed to declare all of these functions,
+and he wants them in the namespace, but they are "private" to
+`imgui.cpp`.
+
+2. Define the function in `imgui.cpp` with the namespace syntax:
+
+```c
+// imgui.cpp:3719
+ImGuiContext* ImGui::CreateContext(ImFontAtlas* shared_font_atlas)
+{
+    ImGuiContext* prev_ctx = GetCurrentContext();
+    ImGuiContext* ctx = IM_NEW(ImGuiContext)(shared_font_atlas);
+    ...
+    return ctx;
+}
+```
+
+And it's declaration goes in `imgui.h`:
+
+```c
+// imgui.h:283
+    IMGUI_API ImGuiContext* CreateContext(ImFontAtlas* shared_font_atlas = NULL);
+```
+
+The `IMGUI_API` macro in front expands to nothing. It is defined
+as nothing. I guess it's just a trick for Omar Cornut to tell
+users something about the function. In `imgui.h` it says
+`IMGUI_API` is the core imgui functions while `IMGUI_IMPL_API` is
+for the default backend files `imgui_impl_xxx.h`. Both are
+defined as nothing.
+
+Maybe something checks somewhere if these are
+defined. For example, here's something I tested:
+
+```c
+        ...
+        SDL_GetVersion(&ver);
+        printf("SDL Version: %d.%d.%d\n", ver.major, ver.minor, ver.patch);
+        #ifdef IMGUI_API
+        puts("IMGUI_API is defined");
+        #endif
+        ...
+```
+
+Building that with this recipe:
+
+```make
+prep_main.cpp: main.cpp
+	$(CXX) $(CXXFLAGS) -E -o $@ $<
+```
+
+I get this preprocessed output:
+
+```c
+        SDL_GetVersion(&ver);
+        printf("SDL Version: %d.%d.%d\n", ver.major, ver.minor, ver.patch);
+
+        puts("IMGUI_API is defined");
+```
+
+So maybe the rules are:
+
+1. *namespace* a function by including the namespacing syntax in the function definition
+2. the declaration does not need the namespacing syntax
+
+
+## Reference
+
+```c
+    // io is a reference to an already existing object
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+```
+
+The object is member `IO` (type `ImGuiIO`) in a `ImGuiContext`
+struct:
+
+```c
+// imgui_internal.h:1588
+struct ImGuiContext
+{
+    ...
+    ImGuiIO                 IO;
+    ...
+    ImGuiStyle              Style;
+    ...
+}
+```
+
+`GetIO()` gets the `ImGuiContext` that `GImGui` points
+to.
+
