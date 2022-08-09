@@ -1,19 +1,76 @@
-This is a minimal C++ build setup using IMGUI with SDL2
-~and OpenGL3~.
+This is a minimal C++ build setup using IMGUI with SDL2. I'm
+using SDL as the renderer as well (it's not recommended but it's
+easy).
+
+I'm simultaneously learning Dear ImGui and C++, so I'm
+intentionally using C++ header files, but they are not required
+to use Dear ImGui and Dear ImGui itself does not depend on any
+C++ header files.
+
+Dear ImGui just uses a few C++ language features: namespace,
+constructors, and templates (see https://imgui-test.readthedocs.io/en/latest/#).
 
 # Minimal Source
 
-## Get build to work
+## Get a working C++ build
 
-The `main.cpp` file looks like a regular C file.
+Make a `Makefile`. Leave it empty.
+
+Make a `main.cpp`:
+
+```c
+int main()
+{
+    return 42;
+}
+```
+
+Build (note there is no `main` target defined in the Makefile,
+this just works!):
+
+```bash
+$ make main
+g++     main.cpp   -o main
+```
+
+Run:
+
+```bash
+$ ./main.exe
+$ echo $?
+42
+```
+
+## Add the SDL lib
+
+Get the C++ code to build with the SDL lib. Add flags to the
+Makefile:
+
+```make
+CXXFLAGS = -std=c++11
+CXXFLAGS += -Wall -Wpedantic
+CXXFLAGS += `pkgconf --cflags sdl2`
+LDLIBS = `pkgconf --libs sdl2`
+```
+
+And add SDL to `main.cpp`:
 
 ```c
 #include <SDL.h>
 int main(int argc, char *argv[])
 {
-    for(int i=0; i<argc; i++) puts(argv[i]);
-    return 0;
+    return 42;
 }
+```
+
+Build and run:
+
+```bash
+$ make main
+g++ -std=c++11 -Wall -Wpedantic `pkgconf --cflags sdl2`    main.cpp  `pkgconf --libs sdl2` -o main
+$ ./main.exe
+$ echo $?
+42
 ```
 
 - `SDL.h` must be included to avoid linker error 
@@ -25,27 +82,86 @@ int main(int argc, char *argv[])
 
 - `main` must have the `int` and `char**` args to match `SDL_main`
 
-## Minimal actual source
+Do something with the args passed to main -- print them to stdout:
 
-Do all the SDL setup and shutdown.
+```c
+#include <SDL.h>
+int main(int argc, char *argv[])
+{
+    for(int i=0; i<argc; i++) puts(argv[i]);
+    return 0;
+}
+```
 
-IMGUI recommends not using `SDL_Renderer`. Instead, IMGUI
-recommends the `SDL_GL` API and using `opengl3`. I will do that
-eventually, but for now I'll stick with the `SDL_Renderer`
-backend because I know it well.
+Build and run:
 
-The IMGUI example is here: `imgui/examples/example_sdl_sdlrenderer/main.cpp`
+```bash
+$ make main
+$ ./main.exe
+C:\msys64\home\mike\gitrepos\cpp\min-cpp\main.exe
+```
 
-TODO: do my usual setup/shutdown plus some debug overlay using
-IMGUI.
+`puts()` is in `stdio.h`, but `SDL.h` already includes that, so I
+didn't bother.
+
+## First bit of C++
+
+So far this has been regular C code but compiled with `g++`.
+
+Print the args again, but C++ style:
+
+```c
+#include <SDL.h>
+#include <iostream>
+int main(int argc, char *argv[])
+{
+    for(int i=0; i<argc; i++) std::cout<<argv[i]<<std::endl;
+    return 0;
+}
+```
+
+Use this scoped form of namespace resolution to make the code
+line a little shorter:
+
+```c
+#include <SDL.h>
+#include <iostream>
+int main(int argc, char *argv[])
+{
+    using namespace std;
+    for(int i=0; i<argc; i++) cout<<argv[i]<<endl;
+    return 0;
+}
+```
 
 # Minimal Makefile
 
-EXE and SRC do not have to be the same name. Keeping it simple,
-the source is `main.cpp`, and the executable is `main.exe`, so
-both EXE and SRC are `main`. And since `main` is the first target
-in the file, it's the default target, so running `make` will
-build `main.exe`:
+## Context
+
+Dear ImGui library is built from source. I keep a copy of the
+ImGui source in a parent directory, but the object files (output
+by the compiler) go in this project folder (not the ImGui source
+folder).
+
+It takes a while to build those object files (a solid five
+seconds or so), so I don't do my usual unity build (`make -B`).
+Instead, I actually use `make` the way it was originally
+intended: it doesn't rebuild stuff that hasn't changed.
+
+I still force a rebuild of my `main.o` -- I do that by adding a
+`make clean` step in my Vim build shortcut. The `clean` recipe
+only erases my object file and the final `.exe`, it does not
+touch the Dear ImGui object files.
+
+## Implementation
+
+EXE and SRC do *not* have to be the same name. But keeping it
+simple, I name the source `main.cpp`, and the executable
+`main.exe`, so both EXE and SRC are `main`.
+
+Since `main` is the first target in the file, it's the default
+target (I named it `default-target` to make this extra obvious),
+so running `make` will build `main.exe`:
 
 ```make
 EXE = main
@@ -69,12 +185,23 @@ SOURCES += $(IMGUI_DIR)/imgui_demo.cpp
 SOURCES += $(IMGUI_DIR)/imgui_tables.cpp
 SOURCES += $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_sdl.cpp
-SOURCES += $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+SOURCES += $(IMGUI_DIR)/backends/imgui_impl_sdlrenderer.cpp
 OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 ```
 
-I usually include `-Wextra` but that flags stuff in IMGUI. I
-randomly picked C++11 as the standard.
+Note when I eventually switch from the SDL Renderer to the
+`OpenGL` renderer, the last line of `SOURCES +=` changes to this:
+
+```make
+SOURCES += $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+```
+
+I usually include `-Wextra` but that flags stuff in IMGUI, so I
+leave that flag out.
+
+I randomly picked C++11 as the standard. According to [the
+docs](https://imgui-test.readthedocs.io/en/latest/#), Dear ImGui
+does not even require C++11, so older standards should work too.
 
 ```make
 CXXFLAGS = -std=c++11
@@ -85,9 +212,31 @@ LDLIBS = -lgdi32 -lopengl32 -limm32
 LDLIBS += `pkgconf --libs sdl2`
 ```
 
-`CXX` is `g++`. Typical `gcc` (`g++`) command goes:
+Almost all of the build recipes are:
+
+```make
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+```
+
+`CXX` is `g++`.
+
+Typical `gcc` (`g++`) build command goes like this:
 
 `compiler  compiler-flags  processing-step-flags  outfile  infile`
+
+- `-c` is compile only, no linking
+    - so the output is an object file
+- `-o outfile` tells `make` what file to output to
+- `$@` is the outfile
+    - `$@` is a `make` variable that holds the target
+    - the target is the object file name, `blah.o`
+- `$<` is the infile (or infiles)
+    - `$<` is a list of all the prerequisites
+    - there is only one prerequisite to build the object file
+    - the prerequisite is one of the `.cpp` source files,
+      `blah.cpp`
+
+Here are the object file recipes:
 
 ```make
 %.o: %.cpp
@@ -100,9 +249,11 @@ LDLIBS += `pkgconf --libs sdl2`
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 ```
 
-Everything follows that except the final build. The linker flags
-have to go at the end of the recipe. If I put them next to the
-compiler flags, I get a ton of linker errors.
+And now the final build.
+
+The linker flags have to go at the end of the `EXE` recipe. If I
+put them next to the compiler flags, I get a ton of linker
+errors.
 
 ```make
 $(EXE): $(OBJS)
@@ -110,6 +261,8 @@ $(EXE): $(OBJS)
 ```
 
 ## Extra make recipes
+
+### clean
 
 In my usual SDL C project I just rebuild everything. But here I'm
 using the IMGUI library and it takes a while to compile, so I
@@ -138,6 +291,8 @@ list-objs:
 	@echo $(OBJS)
 ```
 
+### tags
+
 This prints human-readable tags to stdout. Since I invoke this
 with `make`, Vim puts in the quickfix window and it becomes a
 quick reference to variable names in my `main.cpp` and in my
@@ -152,12 +307,17 @@ show-tags: tags
 	@ctags --c-kinds=+l -L headers.txt 	--sort=no -x
 ```
 
-It requires `tags` so that I know the tags file and this print
-out are in sync. It also means that `headers.txt` (the list of
-local libs) is up-to-date.
+It requires `tags` so that I know the tags file and this print to
+stdout are in sync. It also means that `headers.txt` (the list of
+local libs) is up-to-date. That file is handy to check the path
+of a header.
 
-Here are the recipes for my `tags`. A typical `ctags` recipe is
-just `ctags -R .` -- run ctags on all the files in this folder.
+Here are the recipes for my `tags` files.
+
+A typical `ctags` recipe is just `ctags -R .` -- run ctags on all
+the files in this folder. Easy enough to run from the command
+line.
+
 Instead, I specify the files: it's all the headers listed in
 `headers.txt` (a.k.a., my local libs), and my one-and-only source
 file, `main.cpp`.
@@ -169,6 +329,10 @@ tags: $(SRC).cpp parse-headers.exe
 	@./parse-headers.exe M
 	@ctags --c-kinds=+l -L headers.txt $(SRC).cpp
 ```
+
+Parse-headers is a simple C program that takes list of headers
+output by the preprocessor with the `-M` flag and reformats it a
+little so that `ctags` understands it.
 
 I also generate tags for all the third-party libs. This is the
 `lib-tags` recipe. When this recipe runs, `headers.txt` contains
@@ -247,9 +411,106 @@ function! CheckIfBuildFailed()
 endfunction
 ```
 
+
+# Minimal ACTUAL Source for SDL and Dear ImGui
+
+Do all the setup and shutdown for an application using SDL and
+Dear ImGui.
+
+IMGUI recommends not using `SDL_Renderer`. Instead, IMGUI
+recommends the `SDL_GL` API and using `opengl3`. I will do that
+eventually, but for now I'll stick with the `SDL_Renderer`
+backend because I know it well.
+
+The IMGUI example is here: `imgui/examples/example_sdl_sdlrenderer/main.cpp`
+
+TODO: do my usual setup/shutdown plus some debug overlay using
+IMGUI.
+
+## Setup
+
+Include libraries:
+
+- SDL
+    - pre-compiled, see Makefile `$(LDFLAGS)`
+- C standard libraries
+    - `<stdio.h>`
+- C++ standard libraries
+    - `<iostream>`
+- ImGui:
+    - the ImGui libraries are compiled from the source files in
+      the `$(IMGUI_DIR)` and `$(IMGUI_DIR)/backends` folders
+- My libraries:
+    - I make header-only libraries
+    - example: `"window_info.h"`
+        - application has one main window that it runs in
+        - so I make a global struct for the window info
+            - members : x, y, w, h, and flags
+        - this is a small lib to give me:
+            - that global struct
+            - a `setup` function to init the struct, either:
+                - use default window settings if I launched with
+                  no args (Vim : `;r<Space>`)
+                - fit the window inside the current Vim window
+                  (and force the window to stay on top) if I
+                  launched with x,y,w,h arg (Vim : `;2`)
+
+```c
+#include "imgui.h"
+#include "imgui_impl_sdl.h" /* ImGui_ImplSDL2_InitForSDLRenderer -- tag hop */
+/* #include "imgui_impl_opengl3.h" */
+#include "imgui_impl_sdlrenderer.h" /* ImGui_ImplSDLRenderer_Init -- tag hop */
+#include <SDL.h>
+#include "window_info.h"
+
+#include <stdio.h>
+#include <iostream>
+```
+
+Globals:
+
+```c
+SDL_Window *win;
+SDL_Renderer *ren;
+```
+
+Match SDL function signature for `main()`:
+
+```c
+int main(int argc, char *argv[])
+```
+
+My typical SDL setup:
+
+```c
+    // Setup
+    WindowInfo wI; WindowInfo_setup(&wI, argc, argv);
+    SDL_Init(SDL_INIT_VIDEO);
+    win = SDL_CreateWindow(argv[0], wI.x, wI.y, wI.w, wI.h, wI.flags);
+    Uint32 ren_flags = 0;                                       // SDL_RendererFlags
+    ren_flags |= SDL_RENDERER_PRESENTVSYNC;                     // 60 FPS; No SDL_Delay()!
+    ren_flags |= SDL_RENDERER_ACCELERATED;                      // Use hardware acceleration
+    ren = SDL_CreateRenderer(win, -1, ren_flags);
+```
+
+And the Dear ImGui setup:
+
+```c
+    // ImGui Setup
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();                               
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL2_InitForSDLRenderer(win, ren);
+    ImGui_ImplSDLRenderer_Init(ren);
+```
+
 # Why no IMGUI submodule
 
-## Proper way to use IMGUI
+## Proper way to use IMGUI repo
 
 The usual way to use IMGUI is to enter the project top folder and
 do this:
@@ -290,7 +551,7 @@ directory like this:
 IMGUI_DIR = ./imgui/
 ```
 
-## Lazy way to use IMGUI
+## Lazy way to use IMGUI repo
 
 But I am being lazy. I am just doing practice projects,
 throw-away code. So I have a clone of `imgui` sitting two folder
@@ -303,121 +564,4 @@ like this:
 ```make
 IMGUI_DIR = ../../imgui/
 ```
-
-# C++ stuff
-
-## Namespace
-
-```c
-    // ImGui is a namespace
-    ImGui::CreateContext();
-```
-
-The `ImGui::` means `CreateContext()` is in the `ImGui`
-namespace.
-
-I see two ways Omar Cornut puts things in the `ImGui` namespace:
-
-1. Put `static` function declarations in the following code block:
-
-```c
-// imgui.cpp:950
-namespace ImGui
-{
-    ...
-}
-```
-
-So that's a list of "internal" functions in the ImGui namespace?
-
-I guess the idea is he needed to declare all of these functions,
-and he wants them in the namespace, but they are "private" to
-`imgui.cpp`.
-
-2. Define the function in `imgui.cpp` with the namespace syntax:
-
-```c
-// imgui.cpp:3719
-ImGuiContext* ImGui::CreateContext(ImFontAtlas* shared_font_atlas)
-{
-    ImGuiContext* prev_ctx = GetCurrentContext();
-    ImGuiContext* ctx = IM_NEW(ImGuiContext)(shared_font_atlas);
-    ...
-    return ctx;
-}
-```
-
-And it's declaration goes in `imgui.h`:
-
-```c
-// imgui.h:283
-    IMGUI_API ImGuiContext* CreateContext(ImFontAtlas* shared_font_atlas = NULL);
-```
-
-The `IMGUI_API` macro in front expands to nothing. It is defined
-as nothing. I guess it's just a trick for Omar Cornut to tell
-users something about the function. In `imgui.h` it says
-`IMGUI_API` is the core imgui functions while `IMGUI_IMPL_API` is
-for the default backend files `imgui_impl_xxx.h`. Both are
-defined as nothing.
-
-Maybe something checks somewhere if these are
-defined. For example, here's something I tested:
-
-```c
-        ...
-        SDL_GetVersion(&ver);
-        printf("SDL Version: %d.%d.%d\n", ver.major, ver.minor, ver.patch);
-        #ifdef IMGUI_API
-        puts("IMGUI_API is defined");
-        #endif
-        ...
-```
-
-Building that with this recipe:
-
-```make
-prep_main.cpp: main.cpp
-	$(CXX) $(CXXFLAGS) -E -o $@ $<
-```
-
-I get this preprocessed output:
-
-```c
-        SDL_GetVersion(&ver);
-        printf("SDL Version: %d.%d.%d\n", ver.major, ver.minor, ver.patch);
-
-        puts("IMGUI_API is defined");
-```
-
-So maybe the rules are:
-
-1. *namespace* a function by including the namespacing syntax in the function definition
-2. the declaration does not need the namespacing syntax
-
-
-## Reference
-
-```c
-    // io is a reference to an already existing object
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-```
-
-The object is member `IO` (type `ImGuiIO`) in a `ImGuiContext`
-struct:
-
-```c
-// imgui_internal.h:1588
-struct ImGuiContext
-{
-    ...
-    ImGuiIO                 IO;
-    ...
-    ImGuiStyle              Style;
-    ...
-}
-```
-
-`GetIO()` gets the `ImGuiContext` that `GImGui` points
-to.
 
