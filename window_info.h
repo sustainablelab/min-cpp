@@ -67,7 +67,8 @@ void WindowInfo_setup(WindowInfo *wI, int argc, char *argv[])
     }
     else
     {
-        wI->flags = SDL_WINDOW_RESIZABLE;                       // Click-drag to resize
+        /* wI->flags = SDL_WINDOW_RESIZABLE;                    // Click-drag to resize */
+        wI->flags = SDL_WINDOW_FULLSCREEN_DESKTOP;              // Click-drag to resize
     }
 }
 
